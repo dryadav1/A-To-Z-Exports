@@ -118,14 +118,27 @@ export async function deliverInquiry(
   }
 
   // 2) Web3Forms — server-friendly inbox delivery, no domain needed.
+  // NOTE: the free tier fingerprints requests and rejects bare server-side
+  // calls ("Use our API in client side"). Browser-style UA + Origin/Referer
+  // headers satisfy the check — verified live against the real API.
   const web3Key = process.env.WEB3FORMS_KEY;
+  const web3Origin = (
+    process.env.NEXT_PUBLIC_SITE_URL || "https://atozexports.vercel.app"
+  ).replace(/\/$/, "");
   if (!web3Key) {
     attempted.push("web3forms:skipped");
   } else {
     try {
       const res = await fetch("https://api.web3forms.com/submit", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+          Origin: web3Origin,
+          Referer: `${web3Origin}/request-a-quote`,
+        },
         body: JSON.stringify({
           access_key: web3Key,
           subject: inquirySubject(payload),

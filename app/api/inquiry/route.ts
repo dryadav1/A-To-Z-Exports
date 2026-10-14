@@ -84,6 +84,17 @@ export async function POST(request: Request) {
   };
 
   try {
+    // Logged after a successful direct browser delivery — validate + record,
+    // but never re-send (avoids duplicate emails).
+    if (body.clientDelivered === true) {
+      console.info("[inquiry:logged] Enquiry delivered client-side:", {
+        kind: payload.kind,
+        name: payload.name,
+        email: payload.email,
+        product: payload.product,
+      });
+      return NextResponse.json({ ok: true, delivered: true, note: "Logged; email sent directly." });
+    }
     const result = await deliverInquiry(payload);
     return NextResponse.json({
       ok: true,

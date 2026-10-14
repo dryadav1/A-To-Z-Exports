@@ -32,6 +32,9 @@ export interface InquiryPayload {
   shippingTerms?: string;
   inquiryType?: string;
   message: string;
+  /** Transport flag: the browser already delivered this enquiry, so the
+   *  server must only validate + log it, never re-send. Not email content. */
+  clientDelivered?: boolean;
 }
 
 export interface DeliveryResult {

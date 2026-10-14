@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { CheckCircle2, Mail, MessageCircle } from "lucide-react";
 import { getBusinessGmailHref, getBusinessOutlookHref, getEmailHref, getWhatsAppHref } from "@/lib/site";
 import { inquiryBody, inquirySubject, type InquiryPayload } from "@/lib/inquiry";
+import { submitDirect } from "@/lib/web3forms-client";
 
 export type SubmitState =
   | { status: "idle" }
@@ -20,6 +21,23 @@ export function useInquirySubmit() {
     setState({ status: "sending" });
     setLastPayload(payload);
     try {
+      // 1) Direct browser → provider delivery (works from any network).
+      const direct = await submitDirect(payload);
+      if (direct.ok) {
+        // Best-effort server log — flagged so the server never re-sends.
+        try {
+          await fetch("/api/inquiry", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...payload, clientDelivered: true }),
+          });
+        } catch {
+          // Logging must never break a successful delivery.
+        }
+        setState({ status: "sent", delivered: true });
+        return;
+      }
+      // 2) Fall back to the server-side delivery chain.
       const res = await fetch("/api/inquiry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

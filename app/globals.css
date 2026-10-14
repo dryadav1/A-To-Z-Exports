@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand palette — A To Z Exports */
+  --color-forest-50: #eef4ef;
+  --color-forest-100: #d8e6db;
+  --color-forest-200: #b2cdc0;
+  --color-forest-300: #84ad97;
+  --color-forest-400: #558a6e;
+  --color-forest-500: #356b4f;
+  --color-forest-600: #25563d;
+  --color-forest-700: #1d4733;
+  --color-forest-800: #173d2b;
+  --color-forest-900: #10291d;
+  --color-forest-950: #0a1d14;
+
+  --color-agri-50: #f0f5ee;
+  --color-agri-100: #dde9d9;
+  --color-agri-200: #bcd3b4;
+  --color-agri-300: #92b787;
+  --color-agri-400: #6d9a61;
+  --color-agri-500: #537a46;
+  --color-agri-600: #42623a;
+  --color-agri-700: #364f31;
+  --color-agri-800: #2e402b;
+  --color-agri-900: #273625;
+
+  --color-ivory-50: #fdfcf8;
+  --color-ivory-100: #f8f6ef;
+  --color-ivory-200: #efe9d8;
+  --color-ivory-300: #e2d7be;
+  --color-ivory-400: #d3c39c;
+
+  --color-gold-50: #faf6ec;
+  --color-gold-100: #f2e9d2;
+  --color-gold-200: #e6d3a8;
+  --color-gold-300: #d8ba7e;
+  --color-gold-400: #c7a568;
+  --color-gold-500: #b28c4e;
+  --color-gold-600: #96703c;
+  --color-gold-700: #775731;
+
+  --color-charcoal-400: #6d726d;
+  --color-charcoal-500: #4a4f4a;
+  --color-charcoal-600: #363b36;
+  --color-charcoal-700: #2c302c;
+  --color-charcoal-800: #242824;
+  --color-charcoal-900: #1b1e1b;
+}
+
+@theme inline {
+  --font-serif: var(--font-dm-serif);
+  --font-serif-italic: var(--font-dm-serif-italic);
+  --font-sans: var(--font-manrope);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-ivory-100);
+  color: var(--color-charcoal-800);
+  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: var(--color-forest-800);
+  color: var(--color-ivory-100);
+}
+
+/* Clear, consistent keyboard focus */
+:focus-visible {
+  outline: 2px solid var(--color-gold-400);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Refined editorial link underline */
+.link-underline {
+  text-decoration: underline;
+  text-decoration-color: var(--color-gold-400);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+/* Premium scrollbar */
+::-webkit-scrollbar {
+  width: 11px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-ivory-200);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-forest-800);
+  border-radius: 8px;
+  border: 2px solid var(--color-ivory-200);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-forest-600);
+}
+
+/* Button sheen sweep — quiet luxury on primary CTAs */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 60%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.9s ease;
+  pointer-events: none;
+}
+.btn-shine:hover::after {
+  transform: translateX(120%);
+}
+
+/* Slow editorial zoom for hero imagery */
+@keyframes ken-burns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+.ken-burns {
+  animation: ken-burns 18s ease-in-out infinite alternate;
+}
+
+/* Commodity marquee ticker */
+@keyframes marquee-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  animation: marquee-x 36s linear infinite;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* Gold hairline flourish for section dividers */
+.rule-flourish {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold-400) 20%,
+    var(--color-gold-400) 80%,
+    transparent
+  );
+  height: 1px;
+}
+
+/* Subtle paper texture for ivory sections */
+.texture-grain {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--color-forest-800) 5%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

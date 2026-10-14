@@ -34,11 +34,31 @@ export function QuoteForm({ defaultProductSlug }: { defaultProductSlug?: string 
   const ports = destCountry ? (DESTINATION_PORTS[destCountry] ?? []) : [];
   const isSample = shipValue === SAMPLE_SHIPPING_TERM;
 
+  /** Focus the first invalid control so keyboard/screen-reader users land on it. */
+  function focusFirstError(form: HTMLFormElement, next: Errors) {
+    const order: (keyof Errors)[] = [
+      "name", "company", "email", "phone", "country", "product",
+      "grade", "quantity", "packaging", "destinationCountry", "destination",
+      "shippingTerms", "message",
+    ];
+    for (const key of order) {
+      if (!next[key]) continue;
+      const target =
+        key === "phone" ? "phoneNumber"
+        : key === "destination" && portValue === OTHER_PORT ? "destinationPortOther"
+        : key === "destination" ? "destinationPort"
+        : key;
+      const el = form.querySelector(`[name="${target}"]`) as HTMLElement | null;
+      el?.focus();
+      break;
+    }
+  }
+
   if (state.status === "sent" || state.status === "error") {
     return <SubmissionStatus state={state} payload={lastPayload} statusRef={statusRef} onReset={reset} />;
   }
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(formData: FormData, form: HTMLFormElement) {
     const phoneNumber = String(formData.get("phoneNumber") ?? "").trim();
     const countryCode = String(formData.get("countryCode") ?? "").trim();
     const values = {
@@ -81,7 +101,10 @@ export function QuoteForm({ defaultProductSlug }: { defaultProductSlug?: string 
     if (!values.shippingTerms) next.shippingTerms = "Please select the shipping terms.";
     if (values.message.length < 10) next.message = "Please add any extra requirements (min. 10 characters).";
     setErrors(next);
-    if (Object.keys(next).length > 0) return;
+    if (Object.keys(next).length > 0) {
+      focusFirstError(form, next);
+      return;
+    }
     await submit({
       kind: "quote",
       ...values,
@@ -92,7 +115,17 @@ export function QuoteForm({ defaultProductSlug }: { defaultProductSlug?: string 
   const sending = state.status === "sending";
 
   return (
-    <form action={handleSubmit} noValidate aria-label="Request for quotation form" className="grid gap-5">
+    <form
+      onSubmit={(e) => {
+        // preventDefault stops React's action-form reset: entered values are
+        // preserved and only the invalid field is flagged + focused.
+        e.preventDefault();
+        void handleSubmit(new FormData(e.currentTarget), e.currentTarget);
+      }}
+      noValidate
+      aria-label="Request for quotation form"
+      className="grid gap-5"
+    >
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Full name" required error={errors.name}>
           <TextInput name="name" autoComplete="name" placeholder="Priya Sharma" error={errors.name} required />

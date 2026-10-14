@@ -27,7 +27,7 @@ export function ContactForm({ defaultProduct }: { defaultProduct?: string }) {
     return <SubmissionStatus state={state} payload={lastPayload} statusRef={statusRef} onReset={reset} />;
   }
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(formData: FormData, form: HTMLFormElement) {
     const phoneNumber = String(formData.get("phoneNumber") ?? "").trim();
     const countryCode = String(formData.get("countryCode") ?? "").trim();
     const values = {
@@ -51,7 +51,18 @@ export function ContactForm({ defaultProduct }: { defaultProduct?: string }) {
     if (!values.shippingTerms) next.shippingTerms = "Please select the shipping terms.";
     if (values.message.length < 10) next.message = "Please describe your requirement (min. 10 characters).";
     setErrors(next);
-    if (Object.keys(next).length > 0) return;
+    if (Object.keys(next).length > 0) {
+      const order: (keyof Errors)[] = [
+        "name", "company", "email", "phone", "country", "product", "shippingTerms", "message",
+      ];
+      for (const key of order) {
+        if (!next[key]) continue;
+        const target = key === "phone" ? "phoneNumber" : key;
+        (form.querySelector(`[name="${target}"]`) as HTMLElement | null)?.focus();
+        break;
+      }
+      return;
+    }
     await submit({ kind: "contact", ...values });
   }
 
@@ -59,7 +70,12 @@ export function ContactForm({ defaultProduct }: { defaultProduct?: string }) {
 
   return (
     <form
-      action={handleSubmit}
+      onSubmit={(e) => {
+        // preventDefault stops React's action-form reset: entered values are
+        // preserved and only the invalid field is flagged + focused.
+        e.preventDefault();
+        void handleSubmit(new FormData(e.currentTarget), e.currentTarget);
+      }}
       noValidate
       aria-label="Business inquiry form"
       className="grid gap-5"

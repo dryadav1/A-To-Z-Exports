@@ -2,14 +2,13 @@
  * Enquiry delivery — implemented, not a stub.
  *
  * Delivery order (server-side, buyer address never trusted for routing):
- *  1. Resend — when RESEND_API_KEY + INQUIRY_FROM_EMAIL are set. Sends a
- *     branded enquiry email to the business inbox AND a confirmation email
- *     to the buyer. (Recommended upgrade; see `.env.example`.)
- *  2. Form relay — the working default. Forwards the enquiry to the business
- *     inbox via a no-signup transactional relay. The inbox owner clicks ONE
- *     activation email the first time; afterwards delivery is automatic.
- *     Buyer confirmations are not available on this tier, so the UI only
- *     ever promises "recorded", never "emailed", until a provider accepts.
+ *  1. Resend — when RESEND_API_KEY + INQUIRY_FROM_EMAIL are set. Branded
+ *     enquiry email to the business inbox AND a confirmation to the buyer.
+ *  2. Web3Forms — when WEB3FORMS_KEY is set. Free, no domain needed, built
+ *     for server-to-inbox delivery. (Recommended default; see `.env.example`.)
+ *  3. Form relay — legacy fallback. Works from residential networks but many
+ *     hosting providers' IPs are challenged, so it is no longer the default
+ *     path when Web3Forms is available.
  *
  * Every outcome is reported honestly: { delivered } is true ONLY when a
  * provider accepted the message for forwarding. Failures are logged with the
@@ -111,7 +110,47 @@ export async function deliverInquiry(
     }
   }
 
-  // 2) Form relay — working default, no signup required.
+  // 2) Web3Forms — server-friendly inbox delivery, no domain needed.
+  const web3Key = process.env.WEB3FORMS_KEY;
+  if (web3Key) {
+    try {
+      const res = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          access_key: web3Key,
+          subject: inquirySubject(payload),
+          from_name: `${payload.name} (via A To Z Exports website)`,
+          email: payload.email,
+          message: inquiryBody(payload),
+          Company: payload.company ?? "—",
+          Country: payload.country,
+          Phone: payload.phone ?? "—",
+          "Inquiry type": payload.inquiryType ?? payload.kind,
+          Product: payload.product ?? "—",
+          "Grade / specs": payload.grade ?? "—",
+          Quantity: payload.quantity ?? "—",
+          Packaging: payload.packaging ?? "—",
+          Destination: payload.destination ?? "—",
+          "Shipping terms": payload.shippingTerms ?? "—",
+          botcheck: "",
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        success?: boolean;
+        message?: string;
+      } | null;
+      if (res.ok && data?.success) {
+        return { delivered: true, channel: "web3forms", note: "Enquiry emailed to the business inbox." };
+      }
+      throw new Error(data?.message || `Web3Forms responded with HTTP ${res.status}.`);
+    } catch (e) {
+      console.error("[inquiry:web3forms] failed, falling back to relay:", e);
+    }
+  }
+
+  // 3) Form relay — legacy fallback (see note above).
   // NOTE: the relay validates Origin/Referer like a browser form post,
   // so we send the site's own URL as the referrer.
   const siteUrl = (

@@ -41,6 +41,9 @@ export interface DeliveryResult {
   /** True when the relay accepted the message but the inbox needs its
    *  one-time activation click before forwarding starts. */
   pendingActivation?: boolean;
+  /** Provider trail (e.g. ["resend:skipped","web3forms:failed","relay:failed"]).
+   *  Lets anyone diagnose delivery from the API response alone. */
+  attempted?: string[];
 }
 
 /** Business inbox: explicit env override, else the confirmed site contact email. */
@@ -52,6 +55,7 @@ export async function deliverInquiry(
   payload: InquiryPayload,
 ): Promise<DeliveryResult> {
   const to = businessInbox();
+  const attempted: string[] = [];
   if (!to) {
     console.info("[inquiry:fallback] New enquiry received (no inbox configured):", {
       kind: payload.kind,
@@ -62,13 +66,16 @@ export async function deliverInquiry(
     return {
       delivered: false,
       note: "No business inbox configured. See lib/inquiry.ts and .env.example.",
+      attempted: ["inbox:missing"],
     };
   }
 
   // 1) Resend — full delivery with buyer confirmation, when configured.
   const resendKey = process.env.RESEND_API_KEY;
   const from = process.env.INQUIRY_FROM_EMAIL || process.env.EMAIL_FROM_ADDRESS;
-  if (process.env.INQUIRY_PROVIDER === "resend" && resendKey && from) {
+  if (!(process.env.INQUIRY_PROVIDER === "resend" && resendKey && from)) {
+    attempted.push("resend:skipped");
+  } else {
     try {
       const sent = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -102,7 +109,7 @@ export async function deliverInquiry(
           }),
           signal: AbortSignal.timeout(15000),
         }).catch((e) => console.error("[inquiry:resend] buyer confirmation failed:", e));
-        return { delivered: true, channel: "resend", note: "Sent via Resend." };
+        return { delivered: true, channel: "resend", note: "Sent via Resend.", attempted };
       }
       console.error("[inquiry:resend] rejected:", sent.status, await sent.text().catch(() => ""));
     } catch (e) {
@@ -112,7 +119,9 @@ export async function deliverInquiry(
 
   // 2) Web3Forms — server-friendly inbox delivery, no domain needed.
   const web3Key = process.env.WEB3FORMS_KEY;
-  if (web3Key) {
+  if (!web3Key) {
+    attempted.push("web3forms:skipped");
+  } else {
     try {
       const res = await fetch("https://api.web3forms.com/submit", {
         method: "POST",
@@ -142,10 +151,12 @@ export async function deliverInquiry(
         message?: string;
       } | null;
       if (res.ok && data?.success) {
-        return { delivered: true, channel: "web3forms", note: "Enquiry emailed to the business inbox." };
+        return { delivered: true, channel: "web3forms", note: "Enquiry emailed to the business inbox.", attempted };
       }
+      attempted.push("web3forms:failed");
       throw new Error(data?.message || `Web3Forms responded with HTTP ${res.status}.`);
     } catch (e) {
+      if (!attempted.includes("web3forms:failed")) attempted.push("web3forms:failed");
       console.error("[inquiry:web3forms] failed, falling back to relay:", e);
     }
   }
@@ -199,10 +210,11 @@ export async function deliverInquiry(
         pendingActivation: true,
         channel: "relay",
         note: "Relay accepted; business inbox needs one-time activation.",
+        attempted: [...attempted, "relay:activation-pending"],
       };
     }
     if (res.ok && data?.success !== "false") {
-      return { delivered: true, channel: "relay", note: "Enquiry emailed to the business inbox." };
+      return { delivered: true, channel: "relay", note: "Enquiry emailed to the business inbox.", attempted };
     }
     throw new Error(message || `Relay responded with HTTP ${res.status}.`);
   } catch (e) {
@@ -220,6 +232,7 @@ export async function deliverInquiry(
       delivered: false,
       channel: "relay",
       note: "Email relay failed; enquiry logged server-side.",
+      attempted: [...attempted, "relay:failed"],
     };
   }
 }

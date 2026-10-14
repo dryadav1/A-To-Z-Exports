@@ -89,6 +89,7 @@ export async function POST(request: Request) {
       ok: true,
       delivered: result.delivered,
       pendingActivation: result.pendingActivation ?? false,
+      attempted: result.attempted ?? [],
       note: result.note,
     });
   } catch (error) {
